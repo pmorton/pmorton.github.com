@@ -4,7 +4,7 @@
   <title><![CDATA[Geeks-In-The-Kitchen]]></title>
   <link href="http://pmorton.github.com/atom.xml" rel="self"/>
   <link href="http://pmorton.github.com/"/>
-  <updated>2012-06-14T14:26:33-07:00</updated>
+  <updated>2012-06-14T14:39:44-07:00</updated>
   <id>http://pmorton.github.com/</id>
   <author>
     <name><![CDATA[pmorton]]></name>
@@ -12,5 +12,164 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Vagrant-Windows Part 1]]></title>
+    <link href="http://pmorton.github.com/blog/2012/06/14/vagrant-windows-part-1/"/>
+    <updated>2012-06-14T08:34:00-07:00</updated>
+    <id>http://pmorton.github.com/blog/2012/06/14/vagrant-windows-part-1</id>
+    <content type="html"><![CDATA[<h1>Vagrant-Windows Part 1</h1>
+
+<p><em>The Building of the Plugin</em></p>
+
+<p>At the opscode community summit last year, I caught wind of a sweet new piece of software; <a href="http://vagrantup.com">Vagrant</a>. As with most new technology, I immediately decided to give it whirl. I played with a couple of Ubuntu VMs and the chef-solo provisioner. The system worked flawlessly. Of course I asked the next natural question, <em>&#8220;How can I use this to get more stuff done.&#8221;</em></p>
+
+<p>Here at BIA Windows is the pervasive technology that powers our flagship product <a href="http://www.totaldiscovery.com">TotalDiscovery</a>. I took my question of <em>getting stuff done</em> and set out on a path to provision some windows vagrants, only to find that the process that worked so well for the unix platforms, barely worked for windows environments. I asked the internet for a verdict and the answer was clear; vagrant with windows guests simply had minimal supported. &#8230;Months Later&#8230; I once again got frustrated with the development process and thought that this has to be easier. vagrant-windows was born</p>
+
+<p>As with most of my ruby projects, I started down the path of least resistance. I installed Cygwin and OpenSSH on my windows machine and began porting the guest interface. I very quickly found problems that just made me feel icky in my tummy. How do I marshall windows path&#8217;s (C:\Something) to unix paths (/c/Something) and why would I want to do so. Why doesn&#8217;t <code>which</code> resolve batch files, how can I make it do that? The list goes on an on. Ultimately I came to the conclusion that OpenSSH and Cygwin are the wrong tools for the job.</p>
+
+<h2>WinRM</h2>
+
+<p>Having worked quite extensively with the <a href="https://github.com/ZenChild/WinRM">WinRM GEM</a>, I decided that this would <em>probably</em> be the best route for remote communication. It is able to execute native windows processes in a way that a windows user or integrator or user would expect. It has native support for command execution, PowerShell script execution and wql queries. The only thing missing was a remote console (think Enter-PSSession in PowerShell) and a file upload facility. The remote console is nice to have, but not a hard and fast requirement, so I have de-prioritized this until a later date. (Pull Requests Anyone?)</p>
+
+<h2><em>Communication Channel</em></h2>
+
+<p>The communication channel is quite simple, once created, you are able to call shell_execute with a command and an optional options hash. <em>Important</em> The default shell <em>is</em> PowerShell. If you do not want your commands to run in a PowerShell context, specify <code> :shell => :cmd </code> in your options hash.</p>
+
+<h2><em>File Uploads</em></h2>
+
+<p>The file upload facility for the gem is a bit hacky, we use a text channel to transfer a base-64 encoded file to the remote host, the file is then decoded on the other end. The example below is a quick and dirty that will get some much needed love shortly, specifically it does not scale to large files and needs to take advantage of streams.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="n">from</span><span class="p">,</span> <span class="n">to</span><span class="p">)</span>
+</span><span class='line'>        <span class="n">file</span> <span class="o">=</span> <span class="s2">&quot;winrm-upload-</span><span class="si">#{</span><span class="nb">rand</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>        <span class="n">file_name</span> <span class="o">=</span> <span class="p">(</span><span class="n">session</span><span class="o">.</span><span class="n">cmd</span><span class="p">(</span><span class="s2">&quot;echo %TEMP%</span><span class="se">\\</span><span class="si">#{</span><span class="n">file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span><span class="o">[</span><span class="ss">:data</span><span class="o">][</span><span class="mi">0</span><span class="o">][</span><span class="ss">:stdout</span><span class="o">].</span><span class="n">chomp</span>
+</span><span class='line'>        <span class="n">session</span><span class="o">.</span><span class="n">powershell</span> <span class="o">&lt;&lt;-</span><span class="no">EOH</span>
+</span><span class='line'><span class="sh">          if(Test-Path #{to})</span>
+</span><span class='line'><span class="sh">          {</span>
+</span><span class='line'><span class="sh">            rm #{to}</span>
+</span><span class='line'><span class="sh">          }</span>
+</span><span class='line'><span class="no">        EOH</span>
+</span><span class='line'>        <span class="no">Base64</span><span class="o">.</span><span class="n">encode64</span><span class="p">(</span><span class="no">IO</span><span class="o">.</span><span class="n">binread</span><span class="p">(</span><span class="n">from</span><span class="p">))</span><span class="o">.</span><span class="n">gsub</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">chars</span><span class="o">.</span><span class="n">to_a</span><span class="o">.</span><span class="n">each_slice</span><span class="p">(</span><span class="mi">8000</span><span class="o">-</span><span class="n">file_name</span><span class="o">.</span><span class="n">size</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">chunk</span><span class="o">|</span>
+</span><span class='line'>          <span class="n">out</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">cmd</span><span class="p">(</span> <span class="s2">&quot;echo </span><span class="si">#{</span><span class="n">chunk</span><span class="o">.</span><span class="n">join</span><span class="si">}</span><span class="s2"> &gt;&gt; </span><span class="se">\&quot;</span><span class="si">#{</span><span class="n">file_name</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2">&quot;</span> <span class="p">)</span>
+</span><span class='line'>        <span class="k">end</span>
+</span><span class='line'>        <span class="n">execute</span> <span class="s2">&quot;mkdir [System.IO.Path]::GetDirectoryName(</span><span class="se">\&quot;</span><span class="si">#{</span><span class="n">to</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2">)&quot;</span>
+</span><span class='line'>        <span class="n">execute</span> <span class="o">&lt;&lt;-</span><span class="no">EOH</span>
+</span><span class='line'><span class="sh">          $base64_string = Get-Content \&quot;#{file_name}\&quot;</span>
+</span><span class='line'><span class="sh">          $bytes  = [System.Convert]::FromBase64String($base64_string) </span>
+</span><span class='line'><span class="sh">          $new_file = [System.IO.Path]::GetFullPath(\&quot;#{to}\&quot;)</span>
+</span><span class='line'><span class="sh">          [System.IO.File]::WriteAllBytes($new_file,$bytes)</span>
+</span><span class='line'><span class="no">        EOH</span>
+</span><span class='line'>      <span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Guest Support</h2>
+
+<p>Each vagrant guest platorm has a core interface that must be implemented to fully support VM provisioning. I have provided an example interface for your reference. All code blocks marked by #### give a basic explanation of how the windows provider completes this task.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">CustomVMGuest</span> <span class="o">&lt;</span> <span class="no">Base</span>
+</span><span class='line'>  <span class="k">class</span> <span class="nc">WindowsError</span> <span class="o">&lt;</span> <span class="no">Errors</span><span class="o">::</span><span class="no">VagrantError</span>
+</span><span class='line'>    <span class="n">error_namespace</span><span class="p">(</span><span class="s2">&quot;vagrant.guest.windows&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">change_host_name</span><span class="p">(</span><span class="nb">name</span><span class="p">)</span>
+</span><span class='line'>    <span class="c1">### Code to Rename the computer</span>
+</span><span class='line'>    <span class="c1">#### Windows guest executes a wmic command to rename the computer.</span>
+</span><span class='line'>    <span class="c1">#### This is half-baked because windows requires a reboot to be renamed</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">distro_dispatch</span>
+</span><span class='line'>    <span class="c1">### Detect the distribution and return a symbol that describes the distribution</span>
+</span><span class='line'>    <span class="c1">#### No real magic, we just return :windows</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">halt</span>
+</span><span class='line'>    <span class="c1">### Shutdown the VM</span>
+</span><span class='line'>    <span class="c1">#### Executes the shutdown.exe command</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">mount_shared_folder</span><span class="p">(</span><span class="nb">name</span><span class="p">,</span> <span class="n">guestpath</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+</span><span class='line'>    <span class="c1">### Mount a VBox Share to folder</span>
+</span><span class='line'>    <span class="c1">#### Creates Symbolic on local drives that link to the \\vboxsvr shares</span>
+</span><span class='line'>    <span class="c1">#### Note that symbolic links are supported in vista and greater only</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">mount_nfs</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">folders</span><span class="p">)</span>
+</span><span class='line'>    <span class="c1">### Mount a NFS Share  </span>
+</span><span class='line'>    <span class="c1">#### Raises an exception, not implemented (YET)    </span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">configure_networks</span><span class="p">(</span><span class="n">networks</span><span class="p">)</span>
+</span><span class='line'>    <span class="c1">### Set the IP Addressing information on the network interfaces</span>
+</span><span class='line'>    <span class="c1">#### Executes some netsh commands to change the ip-addresses</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Provisioners</h2>
+
+<p>I have yet to test a large number of provisioners, chef-solo is the primary provisioner that we use for our vagrant boxes. <em>Important:</em> You should know that at they moment there are a number of hacks in place to make this work. Most of the providers assume unix tools, but as I mentioned earlier, we do not have those tools installed on a base windows installation. What I did was inject some targeted wrapper functions into the PowerShell console. These functions emulate functionality like <code>which</code> and <code>test -d</code>. That being said that are far from perfect and not a final solution. My plan is to work with the vagrant team to abstract the implementation details of the provisioner on a platform basis. This change would bring provisioners up to speed with the extensibility that is central to most of the other components in vagrant.</p>
+
+<p><strong>The next part of this series will focus on getting started</strong></p>
+]]></content>
+  </entry>
   
 </feed>

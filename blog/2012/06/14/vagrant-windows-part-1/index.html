@@ -3,7 +3,7 @@
 <html>
 <head>
 	<meta charset="utf-8">
-	<title>Geeks-In-The-Kitchen</title>
+	<title>Vagrant-Windows Part 1 - Geeks-In-The-Kitchen</title>
 	<meta name="author" content="pmorton">
 
 	
@@ -85,13 +85,9 @@
 	})(jQuery);
 </script>
 
-	<div id="content" class="inner">
-
-
-    <article class="post">
-	<h1 class="title"><a href="/blog/2012/06/14/vagrant-windows-part-1/">Vagrant-Windows Part 1</a></h1>
-	<div class="entry-content">
-		<h1>Vagrant-Windows Part 1</h1>
+	<div id="content" class="inner"><article class="post">
+	<h1 class="title">Vagrant-Windows Part 1</h1>
+	<div class="entry-content"><h1>Vagrant-Windows Part 1</h1>
 
 <p><em>The Building of the Plugin</em></p>
 
@@ -242,10 +238,7 @@
 <p>I have yet to test a large number of provisioners, chef-solo is the primary provisioner that we use for our vagrant boxes. <em>Important:</em> You should know that at they moment there are a number of hacks in place to make this work. Most of the providers assume unix tools, but as I mentioned earlier, we do not have those tools installed on a base windows installation. What I did was inject some targeted wrapper functions into the PowerShell console. These functions emulate functionality like <code>which</code> and <code>test -d</code>. That being said that are far from perfect and not a final solution. My plan is to work with the vagrant team to abstract the implementation details of the provisioner on a platform basis. This change would bring provisioners up to speed with the extensibility that is central to most of the other components in vagrant.</p>
 
 <p><strong>The next part of this series will focus on getting started</strong></p>
-
-		
-		
-	</div>
+</div>
 
 
 <div class="meta">
@@ -266,15 +259,28 @@
 
 </div>
 	
-		<span class="comments"><a href="/blog/2012/06/14/vagrant-windows-part-1//index.html#disqus_thread">Comments</a></span>
+		<span class="comments"><a href="/blog/2012/06/14/vagrant-windows-part-1/#disqus_thread">Comments</a></span>
 	
 </div></article>
+<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+	
+	
+	<a class="addthis_button_tweet"></a>
+	
+	
+	<a class="addthis_counter addthis_pill_style"></a>
+	</div>
+  <script type="text/javascript" src="http://s7.addthis.com/js/250/addthis_widget.js#pubid="></script>
+</div>
 
-<nav id="pagenavi">
-    
-    
-    <div class="center"><a href="/blog/archives">Blog Archives</a></div>
-</nav></div>
+
+<section id="comment">
+    <h1 class="title">Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+</section>
+</div>
 	<footer id="footer" class="inner">Copyright &copy; 2012
 
     pmorton
@@ -293,7 +299,10 @@
       var disqus_shortname = 'geeksinthekitchens';
       
         
-        var disqus_script = 'count.js';
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://pmorton.github.com/blog/2012/06/14/vagrant-windows-part-1/';
+        var disqus_url = 'http://pmorton.github.com/blog/2012/06/14/vagrant-windows-part-1/';
+        var disqus_script = 'embed.js';
       
     (function () {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
